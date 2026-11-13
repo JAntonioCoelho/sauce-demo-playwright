@@ -96,8 +96,9 @@ jobs:
             echo "::notice title=Baselines visuais::Há baselines novas no artefacto visual-baselines-linux. Revê-as e faz commit."
           fi
 
+      # Sem !cancelled(), o `if` herda o success() implícito e salta se algum passo anterior falhou.
       - name: Publicar baselines visuais novas
-        if: ${{ steps.baselines.outputs.changed == 'true' }}
+        if: ${{ !cancelled() && steps.baselines.outputs.changed == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: visual-baselines-linux

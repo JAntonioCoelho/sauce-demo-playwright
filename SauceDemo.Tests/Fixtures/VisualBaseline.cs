@@ -52,7 +52,7 @@ public static class VisualBaseline
 
         var outputDirectory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "visual-diffs");
         Directory.CreateDirectory(outputDirectory);
-        var prefix = Path.Combine(outputDirectory, $"{name}-{ToSafeFileName(TestContext.CurrentContext.Test.Name)}");
+        var prefix = Path.Combine(outputDirectory, $"{name}-{FileNames.ToSafe(TestContext.CurrentContext.Test.Name)}");
         await File.WriteAllBytesAsync($"{prefix}-actual.png", actual);
         TestContext.AddTestAttachment($"{prefix}-actual.png", "Screenshot atual");
         if (comparison.DiffImage is not null)
@@ -83,11 +83,5 @@ public static class VisualBaseline
         var browser = page.Context.Browser?.BrowserType.Name ?? "unknown";
         var os = OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsMacOS() ? "mac" : "linux";
         return Path.Combine(ProjectDirectory, "VisualBaselines", $"{browser}-{os}", $"{name}.png");
-    }
-
-    private static string ToSafeFileName(string value)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(value.Select(c => invalid.Contains(c) || c is '"' or '(' or ')' ? '_' : c).ToArray());
     }
 }

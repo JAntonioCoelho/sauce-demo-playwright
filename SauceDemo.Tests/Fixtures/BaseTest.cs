@@ -44,7 +44,7 @@ public abstract class BaseTest : PageTest
         var tracePath = Path.Combine(
             TestContext.CurrentContext.WorkDirectory,
             "playwright-traces",
-            $"{ToSafeFileName(TestContext.CurrentContext.Test.FullName)}.zip");
+            $"{FileNames.ToSafe(TestContext.CurrentContext.Test.FullName)}.zip");
 
         await Context.Tracing.StopAsync(new() { Path = tracePath });
         TestContext.AddTestAttachment(tracePath, "Playwright trace (abrir em trace.playwright.dev)");
@@ -57,11 +57,5 @@ public abstract class BaseTest : PageTest
         var inventory = await login.LoginSuccessfullyAsync(username, Settings.DefaultPassword);
         await Expect(inventory.Items).ToHaveCountAsync(Products.TotalInCatalog);
         return inventory;
-    }
-
-    private static string ToSafeFileName(string value)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        return new string(value.Select(c => invalid.Contains(c) ? '_' : c).ToArray());
     }
 }
