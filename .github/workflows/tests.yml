@@ -30,6 +30,8 @@ jobs:
     name: Build e testes (Chromium, Linux)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write # só para enviar baselines novas para o branch ci/visual-baselines-linux
     env:
       UPDATE_VISUAL_BASELINES: ${{ inputs.update_visual_baselines && '1' || '' }}
 
@@ -93,7 +95,6 @@ jobs:
           if [ -n "$changes" ]; then
             echo "$changes"
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Baselines visuais::Há baselines novas no artefacto visual-baselines-linux. Revê-as e faz commit."
           fi
 
       # Sem !cancelled(), o `if` herda o success() implícito e salta se algum passo anterior falhou.
@@ -104,3 +105,16 @@ jobs:
           name: visual-baselines-linux
           path: SauceDemo.Tests/VisualBaselines/chromium-linux/
           retention-days: 14
+
+      # As baselines vão também para um branch, para serem revistas e entrarem em main por merge.
+      # Nunca vão diretamente para main: uma baseline errada esconderia bugs visuais.
+      - name: Enviar baselines novas para o branch ci/visual-baselines-linux
+        if: ${{ !cancelled() && steps.baselines.outputs.changed == 'true' && github.event_name != 'pull_request' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c ci/visual-baselines-linux
+          git add SauceDemo.Tests/VisualBaselines
+          git commit -m "chore: baselines visuais chromium-linux (run ${{ github.run_id }})"
+          git push --force origin ci/visual-baselines-linux
+          echo "::notice title=Baselines visuais::Baselines novas no branch ci/visual-baselines-linux. Revê as imagens e faz merge para main."

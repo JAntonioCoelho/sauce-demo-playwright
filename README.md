@@ -53,8 +53,9 @@ O workflow `.github/workflows/tests.yml` corre em cada push e pull request para 
 3. **Bugs conhecidos** (`Category=KnownBug`): devem falhar e não bloqueiam. Se algum passar, o resumo do run avisa.
 4. Resumo no próprio run e artefacto `test-results` com os `.trx`, os traces e os diffs visuais.
 
-**Baselines visuais de Linux:** se um run criar baselines novas (ficheiros que ainda não estão no repo), publica-as no
-artefacto `visual-baselines-linux`. Revê as imagens e faz commit em `SauceDemo.Tests/VisualBaselines/chromium-linux/`.
+**Baselines visuais de Linux:** se um run criar baselines novas (ficheiros que ainda não estão no repo), faz commit
+delas para o branch `ci/visual-baselines-linux` e publica-as também no artefacto `visual-baselines-linux`.
+Revê as imagens e faz merge do branch para `main`. Nunca vão diretamente para `main`: uma baseline errada esconderia bugs visuais.
 Para regenerar todas: *Actions → Testes → Run workflow*, com "Regenerar as baselines visuais de Linux".
 
 O `azure-pipelines.yml` faz o mesmo em Azure DevOps.
