@@ -7,16 +7,43 @@ Entradas mais recentes primeiro.
 
 | | |
 |---|---|
-| Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 · Chromium |
+| Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 |
+| Browsers | Chromium 156, Firefox 157, WebKit 27.2 (CI); Chromium (local) |
 | Repositório | [JAntonioCoelho/sauce-demo-playwright](https://github.com/JAntonioCoelho/sauce-demo-playwright) (público) |
-| CI | GitHub Actions, `tests.yml`: verde em Linux (~1,5 min por run) |
-| Gate (`Category!=KnownBug`) | 28/28 a passar, em Windows e em Linux |
-| Bugs conhecidos (`KnownBug`) | 10, todos a falhar como esperado |
+| CI | GitHub Actions, `tests.yml`: matriz de 3 browsers em paralelo, verde (~2 min por run) |
+| Gate (`Category!=KnownBug`) | 28/28 a passar em cada browser (e em Windows, local) |
+| Bugs conhecidos (`KnownBug`) | 10, todos a falhar como esperado nos 3 browsers |
 | Utilizadores cobertos | todos os 6 do Sauce Demo |
-| Baselines visuais | `chromium-win` (2) e `chromium-linux` (2) |
-| Próximo passo | Firefox e WebKit na pipeline (matriz de browsers) |
+| Baselines visuais | `chromium-win`, `chromium-linux`, `firefox-linux`, `webkit-linux` (2 cada) |
+| Próximo passo | Acessibilidade com axe-core (`Deque.AxeCore.Playwright`) |
 
 ---
+
+## 2026-11-13 — Chromium, Firefox e WebKit na pipeline
+
+**Feito**
+- Matriz `browser: [chromium, firefox, webkit]` com `fail-fast: false`, para se ver o resultado dos três mesmo que um falhe.
+- Cada job instala só o seu browser e passa-o ao `dotnet test` de duas formas: `BROWSER` (variável de ambiente)
+  e `Playwright.BrowserName`. Artefactos (`test-results-<browser>`), resumo e branch de baselines
+  (`ci/visual-baselines-<browser>-linux`) levam o nome do browser, para não colidirem.
+- Corrigido o `GlobalSetup`: tinha o Chromium fixo para criar o storage state, o que partia o Firefox e o WebKit
+  (o Chromium nem está instalado nesses jobs). Passa a usar o browser de `BROWSER`, com Chromium por omissão.
+- Baselines `firefox-linux` e `webkit-linux` geradas no 1.º run, revistas (inventário e detalhe: imagens, preços e
+  layout corretos) e integradas em `main`.
+
+**Resultado** (run com todas as baselines)
+
+| Browser | Versão | Gate | KnownBug a falhar | Diff do inventário do `visual_user` |
+|---|---|---|---|---|
+| Chromium | 156 | 28/28 | 10/10 | 3,01% |
+| Firefox | 157 | 28/28 | 10/10 | 2,87% |
+| WebKit | 27.2 | 28/28 | 10/10 | 2,88% |
+
+**Decisões**
+- Nenhum teste precisou de ajuste por browser: os locators (`data-test` e roles) e as asserções web-first comportam-se
+  igual nos três. O orçamento de login (4 s) continua a separar bem o `standard_user` do `performance_glitch_user`
+  (~5,4 a 6 s nos três browsers).
+- Localmente continua a correr só o Chromium; outro browser com `BROWSER=firefox` e o browser instalado.
 
 ## 2026-11-13 — GitHub e pipeline no GitHub Actions
 

@@ -28,8 +28,8 @@ dotnet test
 # Só smoke tests
 dotnet test --filter "Category=Smoke"
 
-# Outro browser
-dotnet test -- Playwright.BrowserName=firefox
+# Outro browser (instala-o primeiro: pwsh .../playwright.ps1 install firefox)
+BROWSER=firefox dotnet test -- Playwright.BrowserName=firefox
 
 # Com browser visível
 dotnet test -- Playwright.LaunchOptions.Headless=false
@@ -46,15 +46,16 @@ Para o abrir, usa `pwsh bin/Debug/net10.0/playwright.ps1 show-trace <ficheiro.zi
 
 ## Integração contínua (GitHub Actions)
 
-O workflow `.github/workflows/tests.yml` corre em cada push e pull request para `main`, em Linux com Chromium:
+O workflow `.github/workflows/tests.yml` corre em cada push e pull request para `main`, em Linux, com um job por
+browser em paralelo (Chromium, Firefox e WebKit). Em cada job:
 
-1. Build em Release e instalação do Chromium.
+1. Build em Release e instalação do browser.
 2. **Gate** (`Category!=KnownBug`): decide se o run fica verde.
 3. **Bugs conhecidos** (`Category=KnownBug`): devem falhar e não bloqueiam. Se algum passar, o resumo do run avisa.
-4. Resumo no próprio run e artefacto `test-results` com os `.trx`, os traces e os diffs visuais.
+4. Resumo no próprio run e artefacto `test-results-<browser>` com os `.trx`, os traces e os diffs visuais.
 
 **Baselines visuais de Linux:** se um run criar baselines novas (ficheiros que ainda não estão no repo), faz commit
-delas para o branch `ci/visual-baselines-linux` e publica-as também no artefacto `visual-baselines-linux`.
+delas para o branch `ci/visual-baselines-<browser>-linux` e publica-as também no artefacto `visual-baselines-<browser>-linux`.
 Revê as imagens e faz merge do branch para `main`. Nunca vão diretamente para `main`: uma baseline errada esconderia bugs visuais.
 Para regenerar todas: *Actions → Testes → Run workflow*, com "Regenerar as baselines visuais de Linux".
 
