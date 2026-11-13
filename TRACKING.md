@@ -8,13 +8,45 @@ Entradas mais recentes primeiro.
 | | |
 |---|---|
 | Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 · Chromium |
-| Gate (`Category!=KnownBug`) | 28/28 a passar |
-| Bugs conhecidos (`KnownBug`) | 10 — todos a falhar como esperado |
+| Repositório | [JAntonioCoelho/sauce-demo-playwright](https://github.com/JAntonioCoelho/sauce-demo-playwright) (público) |
+| CI | GitHub Actions, `tests.yml`: verde em Linux (~1,5 min por run) |
+| Gate (`Category!=KnownBug`) | 28/28 a passar, em Windows e em Linux |
+| Bugs conhecidos (`KnownBug`) | 10, todos a falhar como esperado |
 | Utilizadores cobertos | todos os 6 do Sauce Demo |
-| Baselines visuais | `chromium-win` (2). Faltam as de Linux para a pipeline |
-| Próximo passo | Baselines `chromium-linux` geradas na pipeline e publicadas como artefacto |
+| Baselines visuais | `chromium-win` (2) e `chromium-linux` (2) |
+| Próximo passo | Firefox e WebKit na pipeline (matriz de browsers) |
 
 ---
+
+## 2026-11-13 — GitHub e pipeline no GitHub Actions
+
+**Feito**
+- Repositório criado e commit inicial com o projeto, sem os ficheiros obsoletos `build.cmd`/`build.log`.
+- `.gitattributes`: LF no repositório, CRLF nos `.cmd`/`.ps1`, PNG como binário (as baselines são comparadas byte a byte).
+- `.github/workflows/tests.yml` em cada push/PR para `main`: build Release → Chromium → gate → KnownBug (sem bloquear)
+  → resumo no run (`.github/scripts/Write-TestSummary.ps1`, com aviso se um KnownBug passar) → artefacto `test-results`.
+- Baselines novas: commit automático para o branch `ci/visual-baselines-linux` (mais o artefacto `visual-baselines-linux`),
+  para revisão e merge. Nunca vão diretamente para `main`.
+- Baselines `chromium-linux` geradas no CI, revistas (imagens e preços corretos, layout alinhado) e integradas em `main`.
+
+**Runs**
+
+| Run | Resultado | O que mostrou |
+|---|---|---|
+| 1 | Gate verde, run vermelho | Upload rejeitado: nomes de traces com aspas (`("error_user")`); o passo das baselines foi saltado |
+| 2 | Verde | Corrigidos os dois problemas; baselines Linux geradas |
+| 3 | Verde | Baselines enviadas para o branch de revisão |
+| 4 | Verde | Gate 28/28 sem inconclusivos; `visual_user` com 3,00% de pixels diferentes em Linux |
+
+**Problemas e correções**
+- `Path.GetInvalidFileNameChars()` depende do SO: em Linux só exclui `/` e `\0`, por isso as aspas passavam e o
+  `upload-artifact` rejeitava-as. Novo `FileNames.ToSafe` (só `[A-Za-z0-9._-]`), igual em todos os sistemas.
+- Um `if:` sem `!cancelled()` herda o `success()` implícito: o passo das baselines foi saltado porque o upload anterior falhou.
+- Os artefactos ficam num blob storage fora do GitHub, nem sempre acessível de onde se revê. Daí o branch de revisão.
+
+**Decisões**
+- O run só fica vermelho se o gate falhar; os KnownBug têm `continue-on-error` e aparecem no resumo.
+- `permissions: contents: write` só neste job, e só para o branch de baselines.
 
 ## 2026-11-13 — `visual_user` e regressão visual
 
