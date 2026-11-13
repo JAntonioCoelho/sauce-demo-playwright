@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+TestResults/
+playwright-traces/
+.auth/
+*.trx
+visual-diffs/
+build-and-test.log

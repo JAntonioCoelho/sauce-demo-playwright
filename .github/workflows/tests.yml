@@ -1,0 +1,105 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      update_visual_baselines:
+        description: Regenerar as baselines visuais de Linux
+        type: boolean
+        default: false
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PROJECT: SauceDemo.Tests/SauceDemo.Tests.csproj
+  OUTPUT_DIR: SauceDemo.Tests/bin/Release/net10.0
+
+jobs:
+  test:
+    name: Build e testes (Chromium, Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      UPDATE_VISUAL_BASELINES: ${{ inputs.update_visual_baselines && '1' || '' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        id: build
+        run: dotnet build "$PROJECT" -c Release
+
+      - name: Instalar Chromium
+        run: pwsh "$OUTPUT_DIR/playwright.ps1" install --with-deps chromium
+
+      # O gate: tudo menos os bugs conhecidos. É este passo que decide se o run fica verde.
+      - name: Testes (gate)
+        run: >
+          dotnet test "$PROJECT" -c Release --no-build
+          --filter "Category!=KnownBug"
+          --logger "trx;LogFileName=gate.trx"
+          --logger "console;verbosity=normal"
+          --results-directory TestResults
+
+      # Bugs conhecidos: têm de falhar. Correm sempre que houve build, mas não bloqueiam o run.
+      - name: Bugs conhecidos (devem falhar)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: >
+          dotnet test "$PROJECT" -c Release --no-build
+          --filter "Category=KnownBug"
+          --logger "trx;LogFileName=known-bugs.trx"
+          --results-directory TestResults
+
+      - name: Resumo
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        shell: pwsh
+        run: ./.github/scripts/Write-TestSummary.ps1 -ResultsDirectory TestResults
+
+      - name: Publicar resultados, traces e diffs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: |
+            TestResults/*.trx
+            ${{ env.OUTPUT_DIR }}/playwright-traces/
+            ${{ env.OUTPUT_DIR }}/visual-diffs/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Baselines criadas ou regeneradas neste run (ainda não estão no repo): para rever e fazer commit.
+      - name: Detetar baselines visuais novas
+        id: baselines
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          changes=$(git status --porcelain -- SauceDemo.Tests/VisualBaselines)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Baselines visuais::Há baselines novas no artefacto visual-baselines-linux. Revê-as e faz commit."
+          fi
+
+      - name: Publicar baselines visuais novas
+        if: ${{ steps.baselines.outputs.changed == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baselines-linux
+          path: SauceDemo.Tests/VisualBaselines/chromium-linux/
+          retention-days: 14

@@ -1,0 +1,56 @@
+trigger:
+  branches:
+    include: [ main ]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: Release
+  testProject: SauceDemo.Tests/SauceDemo.Tests.csproj
+  outputDir: SauceDemo.Tests/bin/Release/net10.0
+
+steps:
+  - task: UseDotNet@2
+    displayName: Instalar .NET SDK
+    inputs:
+      packageType: sdk
+      version: 10.x
+
+  - script: dotnet build $(testProject) -c $(buildConfiguration)
+    displayName: Build
+
+  - script: pwsh $(outputDir)/playwright.ps1 install --with-deps chromium
+    displayName: Instalar browsers do Playwright
+
+  - script: >
+      dotnet test $(testProject) -c $(buildConfiguration) --no-build
+      --filter "Category!=KnownBug"
+      --logger trx --results-directory $(Agent.TempDirectory)/TestResults
+    displayName: Correr testes (gate)
+
+  - script: >
+      dotnet test $(testProject) -c $(buildConfiguration) --no-build
+      --filter "Category=KnownBug"
+      --logger "trx;LogFileName=known-bugs.trx" --results-directory $(Agent.TempDirectory)/KnownBugs
+    displayName: Bugs conhecidos (devem falhar, não bloqueiam)
+    continueOnError: true
+    env:
+      # Em projetos reais, a password vem de uma variável secreta da pipeline.
+      SAUCEDEMO_DefaultPassword: $(SauceDemoPassword)
+
+  - task: PublishTestResults@2
+    displayName: Publicar resultados
+    condition: always()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '**/*.trx'
+      searchFolder: $(Agent.TempDirectory)/TestResults
+      failTaskOnFailedTests: true
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publicar traces das falhas
+    condition: failed()
+    inputs:
+      targetPath: $(outputDir)/playwright-traces
+      artifact: playwright-traces
