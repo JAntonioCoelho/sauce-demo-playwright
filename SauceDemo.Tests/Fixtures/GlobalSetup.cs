@@ -16,7 +16,9 @@ public sealed class GlobalSetup
 
         using var playwright = await Microsoft.Playwright.Playwright.CreateAsync();
 
-        await using var browser = await playwright.Chromium.LaunchAsync();
+        // O mesmo browser dos testes: a variável BROWSER (que o Playwright .NET também lê) manda; por omissão, Chromium.
+        var browserName = Environment.GetEnvironmentVariable("BROWSER") ?? BrowserType.Chromium;
+        await using var browser = await playwright[browserName].LaunchAsync();
         await using var context = await browser.NewContextAsync(new() { BaseURL = settings.BaseUrl });
         var page = await context.NewPageAsync();
 

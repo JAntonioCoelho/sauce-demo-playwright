@@ -27,13 +27,20 @@ env:
 
 jobs:
   test:
-    name: Build e testes (Chromium, Linux)
+    name: Testes (${{ matrix.browser }}, Linux)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write # só para enviar baselines novas para o branch ci/visual-baselines-linux
+      contents: write # só para enviar baselines novas para o branch ci/visual-baselines-<browser>-linux
+    strategy:
+      # Um browser a falhar não cancela os outros: queremos ver o resultado dos três.
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
     env:
       UPDATE_VISUAL_BASELINES: ${{ inputs.update_visual_baselines && '1' || '' }}
+      # Lida pelo Playwright .NET e pelo GlobalSetup; o BrowserName é também passado ao dotnet test.
+      BROWSER: ${{ matrix.browser }}
 
     steps:
       - uses: actions/checkout@v7
@@ -46,8 +53,8 @@ jobs:
         id: build
         run: dotnet build "$PROJECT" -c Release
 
-      - name: Instalar Chromium
-        run: pwsh "$OUTPUT_DIR/playwright.ps1" install --with-deps chromium
+      - name: Instalar ${{ matrix.browser }}
+        run: pwsh "$OUTPUT_DIR/playwright.ps1" install --with-deps "$BROWSER"
 
       # O gate: tudo menos os bugs conhecidos. É este passo que decide se o run fica verde.
       - name: Testes (gate)
@@ -57,6 +64,7 @@ jobs:
           --logger "trx;LogFileName=gate.trx"
           --logger "console;verbosity=normal"
           --results-directory TestResults
+          -- Playwright.BrowserName="$BROWSER"
 
       # Bugs conhecidos: têm de falhar. Correm sempre que houve build, mas não bloqueiam o run.
       - name: Bugs conhecidos (devem falhar)
@@ -67,18 +75,19 @@ jobs:
           --filter "Category=KnownBug"
           --logger "trx;LogFileName=known-bugs.trx"
           --results-directory TestResults
+          -- Playwright.BrowserName="$BROWSER"
 
       - name: Resumo
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         shell: pwsh
-        run: ./.github/scripts/Write-TestSummary.ps1 -ResultsDirectory TestResults
+        run: ./.github/scripts/Write-TestSummary.ps1 -ResultsDirectory TestResults -Browser $env:BROWSER
 
       - name: Publicar resultados, traces e diffs
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: test-results
+          name: test-results-${{ matrix.browser }}
           path: |
             TestResults/*.trx
             ${{ env.OUTPUT_DIR }}/playwright-traces/
@@ -102,19 +111,20 @@ jobs:
         if: ${{ !cancelled() && steps.baselines.outputs.changed == 'true' }}
         uses: actions/upload-artifact@v7
         with:
-          name: visual-baselines-linux
-          path: SauceDemo.Tests/VisualBaselines/chromium-linux/
+          name: visual-baselines-${{ matrix.browser }}-linux
+          path: SauceDemo.Tests/VisualBaselines/${{ matrix.browser }}-linux/
           retention-days: 14
 
       # As baselines vão também para um branch, para serem revistas e entrarem em main por merge.
       # Nunca vão diretamente para main: uma baseline errada esconderia bugs visuais.
-      - name: Enviar baselines novas para o branch ci/visual-baselines-linux
+      - name: Enviar baselines novas para o branch ci/visual-baselines-${{ matrix.browser }}-linux
         if: ${{ !cancelled() && steps.baselines.outputs.changed == 'true' && github.event_name != 'pull_request' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c ci/visual-baselines-linux
-          git add SauceDemo.Tests/VisualBaselines
-          git commit -m "chore: baselines visuais chromium-linux (run ${{ github.run_id }})"
-          git push --force origin ci/visual-baselines-linux
-          echo "::notice title=Baselines visuais::Baselines novas no branch ci/visual-baselines-linux. Revê as imagens e faz merge para main."
+          branch="ci/visual-baselines-$BROWSER-linux"
+          git switch -c "$branch"
+          git add "SauceDemo.Tests/VisualBaselines/$BROWSER-linux"
+          git commit -m "chore: baselines visuais $BROWSER-linux (run ${{ github.run_id }})"
+          git push --force origin "$branch"
+          echo "::notice title=Baselines visuais ($BROWSER)::Baselines novas no branch $branch. Revê as imagens e faz merge para main."

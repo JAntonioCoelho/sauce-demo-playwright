@@ -16,7 +16,7 @@ public sealed record ImageComparison(
 
 /// <summary>
 /// Compara dois PNG pixel a pixel. O Playwright .NET não tem <c>ToHaveScreenshotAsync</c> (só o test runner de Node),
-/// e em vez de acrescentar uma biblioteca de imagem usamos o próprio Chromium: descodifica as duas imagens num canvas,
+/// e em vez de acrescentar uma biblioteca de imagem usamos o próprio browser do teste: descodifica as duas imagens num canvas,
 /// conta os pixels diferentes e desenha um diff (diferenças a vermelho sobre a imagem esperada esbatida).
 /// </summary>
 public static class ImageComparer

@@ -3,7 +3,7 @@
   totais do gate, falhas do gate e o estado de cada bug conhecido.
   Um KnownBug que passa gera um aviso: o bug pode ter sido corrigido e o teste deve sair da categoria.
 #>
-param([string]$ResultsDirectory = 'TestResults')
+param([string]$ResultsDirectory = 'TestResults', [string]$Browser = '')
 
 function Read-Trx([string]$path) {
     if (-not (Test-Path $path)) { return @() }
@@ -31,7 +31,8 @@ $passed = @($gate | Where-Object Outcome -eq 'Passed').Count
 $failed = @($gate | Where-Object Outcome -eq 'Failed')
 $other = $gate.Count - $passed - $failed.Count
 
-$out.Add('## Gate')
+$suffix = if ($Browser) { " ($Browser)" } else { '' }
+$out.Add("## Gate$suffix")
 $out.Add('')
 $out.Add('| Passaram | Falharam | Não executados / inconclusivos |')
 $out.Add('|---:|---:|---:|')
@@ -44,7 +45,7 @@ if ($failed.Count -gt 0) {
 }
 
 $out.Add('')
-$out.Add('## Bugs conhecidos (devem falhar)')
+$out.Add("## Bugs conhecidos (devem falhar)$suffix")
 $out.Add('')
 if ($known.Count -eq 0) {
     $out.Add('Sem resultados.')
@@ -55,7 +56,7 @@ if ($known.Count -eq 0) {
         $state = switch ($test.Outcome) {
             'Failed' { 'Continua a falhar, como esperado' }
             'Passed' {
-                Write-Output "::warning title=KnownBug passou::$($test.Name) passou. O bug pode ter sido corrigido: tira o teste da categoria KnownBug."
+                Write-Output "::warning title=KnownBug passou$suffix::$($test.Name) passou. O bug pode ter sido corrigido: tira o teste da categoria KnownBug."
                 '**Passou: o bug pode ter sido corrigido**'
             }
             default { 'Não executado (sem baseline ou inconclusivo)' }
