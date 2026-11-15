@@ -67,14 +67,22 @@ public static class VisualBaseline
               $"acima do limite de {MaxDifferentRatio:P2}. Diff em {prefix}-diff.png");
     }
 
-    /// <summary>Espera pelas fontes e por todas as imagens, para o screenshot não apanhar a página a meio.</summary>
+    /// <summary>
+    /// Espera pelas fontes e por todas as imagens, para o screenshot não apanhar a página a meio.
+    /// <c>image.complete</c> só diz que o download acabou: no WebKit a imagem pode ainda não estar descodificada
+    /// nem pintada, e o screenshot saía com uma imagem de produto em falta (~2,4% de pixels diferentes).
+    /// Por isso espera também pelo <c>decode()</c> e por dois frames, para o browser pintar o que descodificou.
+    /// </summary>
     private static Task WaitForStableRenderingAsync(IPage page) =>
         page.EvaluateAsync("""
             async () => {
               await document.fonts.ready;
-              await Promise.all(Array.from(document.images).map(image => image.complete
+              const images = Array.from(document.images);
+              await Promise.all(images.map(image => image.complete
                 ? Promise.resolve()
                 : new Promise(resolve => { image.onload = image.onerror = resolve; })));
+              await Promise.all(images.map(image => image.decode().catch(() => {})));
+              await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             }
             """);
 
