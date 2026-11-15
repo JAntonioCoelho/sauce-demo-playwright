@@ -10,15 +10,55 @@ Entradas mais recentes primeiro.
 | Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 · Deque.AxeCore.Playwright 4.14.0 |
 | Browsers | Chromium 156, Firefox 157, WebKit 27.2 (CI); Chromium (local) |
 | Repositório | [JAntonioCoelho/sauce-demo-playwright](https://github.com/JAntonioCoelho/sauce-demo-playwright) (público) |
-| CI | GitHub Actions, `tests.yml`: matriz de 3 browsers em paralelo, verde (~2 min por run) |
-| Gate (`Category!=KnownBug`) | 36/36 a passar em cada browser |
-| Bugs conhecidos (`KnownBug`) | 10, todos a falhar como esperado nos 3 browsers |
+| CI | GitHub Actions, `tests.yml`: 3 jobs de browser + 1 job de API em paralelo, verde (~2,5 min por run) |
+| Gate UI (`Category!=KnownBug&Category!=Api`) | 37/37 a passar em cada browser |
+| Gate API (`Category=Api&Category!=KnownBug`) | 11/11 a passar |
+| Bugs conhecidos (`KnownBug`) | 10 na UI (nos 3 browsers) + 7 na API, todos a falhar como esperado |
 | Utilizadores cobertos | todos os 6 do Sauce Demo |
 | Baselines visuais | `chromium-win`, `chromium-linux`, `firefox-linux`, `webkit-linux` (2 cada) |
 | Acessibilidade | 7 páginas do fluxo de compra, WCAG 2.x A/AA: 0 violações nos 3 browsers |
-| Próximo passo | Testes de API (Restful Booker) e uso da API para preparar dados nos testes de UI |
+| Próximo passo | Relatório HTML único (resultados, screenshots, diffs, traces e acessibilidade) |
 
 ---
+
+## 2026-11-15 — Testes de API e atalho de estado ([PR #2](https://github.com/JAntonioCoelho/sauce-demo-playwright/pull/2))
+
+**Feito: API ([Restful Booker](https://restful-booker.herokuapp.com))**
+- `BookingApiClient` sobre o `APIRequestContext` do Playwright: sem browser, devolve a resposta crua para se poderem
+  verificar status codes; modelos em `BookingModels.cs` (JSON em camelCase, que dá os nomes em minúsculas da API).
+- `ApiTest`: um contexto por teste, nomes únicos por reserva e limpeza no fim de tudo o que o teste criou
+  (a instância é pública e partilhada). Configuração em `appsettings.json`, secção `Api`.
+- Gate (11): token com credenciais válidas e nenhum com inválidas, criar, ler, filtrar por nome, atualizar (PUT),
+  atualizar parcialmente (PATCH), 403 sem token sem alterar nada, apagar com token e com Basic Auth, 404 para inexistente.
+- O `GlobalSetup` passou para o namespace dos testes de UI: os testes de API já não abrem browser nem fazem login.
+- CI: job `api` próprio, uma só vez (o browser não interessa à API); os jobs de browser excluem a categoria `Api`.
+
+**Feito: atalho de estado no Sauce Demo**
+- O Sauce Demo não tem API, por isso "preparar dados por API" não se aplica tal e qual. O equivalente: o carrinho vive
+  no `localStorage` (`cart-contents`, lista de ids), e o `CartState` escreve-o diretamente.
+- Usado onde o carrinho é só pré-condição (`Cart_RemoveItem_UpdatesListAndBadge`, `Checkout_WithoutPostalCode_ShowsValidationError`).
+  Os testes que testam o próprio "Add to cart" e o E2E de checkout continuam pela UI.
+- `Cart_SeededThroughState_ShowsSeededProducts` valida o atalho e os ids em `Products.Ids` nos 3 browsers.
+
+**Bugs da API confirmados** (`KnownBug`, descrevem o comportamento REST correto)
+
+| Teste | Esperado | Real |
+|---|---|---|
+| `HealthCheck_ReturnsOk` | 200 | 201 |
+| `DeleteBooking_WithToken_ReturnsOkOrNoContent` | 200 ou 204 | 201 |
+| `DeleteBooking_ThatDoesNotExist_ReturnsNotFound` | 404 | 405 |
+| `Auth_WithInvalidCredentials_ReturnsUnauthorized` | 401 | 200 com `{"reason":"Bad credentials"}` |
+| `CreateBooking_WithMissingFields_ReturnsBadRequest` | 400 | 500 Internal Server Error |
+| `CreateBooking_WithCheckoutBeforeCheckin_IsRejected` | 400 | 200, e a reserva é criada |
+| `CreateBooking_WithDecimalPrice_KeepsPrecision` | 150.75 | 150 (truncado) |
+
+**Calibração:** `DeleteBooking_WithBasicAuth_RemovesBooking` entrou como `KnownBug` (há relatos de que o DELETE só
+aceitava o cookie), mas passou no primeiro run e o resumo do CI avisou. Passou para o gate.
+
+**Decisões**
+- Gate da API testa o contrato funcional; os desvios de status codes ficam em `KnownBug`, não no gate, para a pipeline
+  não depender de uma decisão do Restful Booker que é intencional.
+- A API é uma dependência externa: se o Restful Booker estiver em baixo, o job `api` falha sem que a suite tenha regredido.
 
 ## 2026-11-15 — Acessibilidade com axe-core ([PR #1](https://github.com/JAntonioCoelho/sauce-demo-playwright/pull/1))
 
