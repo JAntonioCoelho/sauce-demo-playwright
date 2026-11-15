@@ -125,6 +125,21 @@ public sealed class BookingApiTests : ApiTest
         Assert.That((await Bookings.GetBookingAsync(created.Bookingid)).Status, Is.EqualTo(404));
     }
 
+    /// <summary>
+    /// Começou como KnownBug (há relatos de que o DELETE só aceitava o cookie), mas passou no primeiro run:
+    /// a Basic Auth funciona, por isso é comportamento a proteger no gate.
+    /// </summary>
+    [Test]
+    public async Task DeleteBooking_WithBasicAuth_RemovesBooking()
+    {
+        var created = await CreateBookingAsync();
+
+        var response = await Bookings.DeleteBookingWithBasicAuthAsync(created.Bookingid, Api.Username, Api.Password);
+
+        Assert.That(response.Ok, Is.True, $"DELETE com Basic Auth devolveu {response.Status}");
+        Assert.That((await Bookings.GetBookingAsync(created.Bookingid)).Status, Is.EqualTo(404));
+    }
+
     // ---- Desvios conhecidos de REST: descrevem o comportamento correto e têm de falhar enquanto o bug existir ----
 
     [Test]
@@ -206,14 +221,4 @@ public sealed class BookingApiTests : ApiTest
         Assert.That(json.RootElement.GetProperty("booking").GetProperty("totalprice").GetDecimal(), Is.EqualTo(150.75m));
     }
 
-    [Test]
-    [Category(TestCategories.KnownBug)]
-    public async Task DeleteBooking_WithBasicAuth_RemovesBooking()
-    {
-        var created = await CreateBookingAsync();
-
-        var response = await Bookings.DeleteBookingWithBasicAuthAsync(created.Bookingid, Api.Username, Api.Password);
-
-        Assert.That(response.Ok, Is.True, $"DELETE com Basic Auth devolveu {response.Status}");
-    }
 }
