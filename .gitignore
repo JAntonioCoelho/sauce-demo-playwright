@@ -9,3 +9,4 @@ playwright-traces/
 *.trx
 visual-diffs/
 build-and-test.log
+__pycache__/
