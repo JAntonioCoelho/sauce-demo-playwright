@@ -2,7 +2,8 @@
 
 [![Testes](https://github.com/JAntonioCoelho/sauce-demo-playwright/actions/workflows/tests.yml/badge.svg)](https://github.com/JAntonioCoelho/sauce-demo-playwright/actions/workflows/tests.yml)
 
-Testes E2E de UI ao [Sauce Demo](https://www.saucedemo.com) com Playwright for .NET e NUnit.
+Testes E2E de UI ao [Sauce Demo](https://www.saucedemo.com) e testes de API ao [Restful Booker](https://restful-booker.herokuapp.com),
+com Playwright for .NET e NUnit.
 
 ## Pré-requisitos
 
@@ -27,6 +28,9 @@ dotnet test
 ```bash
 # Só smoke tests
 dotnet test --filter "Category=Smoke"
+
+# Só testes de API (não precisam de browser)
+dotnet test --filter "Category=Api"
 
 # Outro browser (instala-o primeiro: pwsh .../playwright.ps1 install firefox)
 BROWSER=firefox dotnet test -- Playwright.BrowserName=firefox
@@ -59,12 +63,15 @@ delas para o branch `ci/visual-baselines-<browser>-linux` e publica-as também n
 Revê as imagens e faz merge do branch para `main`. Nunca vão diretamente para `main`: uma baseline errada esconderia bugs visuais.
 Para regenerar todas: *Actions → Testes → Run workflow*, com "Regenerar as baselines visuais de Linux".
 
+Os testes de API correm num job à parte (`api`), uma só vez e sem browser; os jobs de browser excluem a categoria `Api`.
+
 O `azure-pipelines.yml` faz o mesmo em Azure DevOps.
 
 ## Estrutura
 
 | Pasta | Conteúdo |
 |---|---|
+| `Api/` | Testes de API ao Restful Booker: cliente, modelos e base com limpeza dos dados criados |
 | `Config/` | Leitura da configuração (JSON + variáveis de ambiente) |
 | `Fixtures/` | Classes base, tracing, setup global com login reutilizado |
 | `Pages/` | Page Objects e componentes. Só ações e locators, nunca asserções |
@@ -89,6 +96,10 @@ O `azure-pipelines.yml` faz o mesmo em Azure DevOps.
 - **Acessibilidade:** `AccessibilityScanner.ScanAsync(Page, "nome")` corre o axe-core com as regras WCAG 2.x A/AA e
   devolve as violações (o relatório JSON fica anexado ao teste). As páginas do fluxo de compra têm de ter zero violações;
   o controlo positivo garante que o scanner deteta violações quando elas existem.
+- **Pré-condições pelo estado, não pela UI:** se um teste só precisa de um carrinho cheio, usa `CartState.SeedAsync`
+  (escreve o carrinho no `localStorage`). Os cliques de "Add to cart" já são testados onde são o objeto do teste.
+- **Testes de API:** herdam de `ApiTest`, que cria um `APIRequestContext` por teste e apaga no fim o que o teste criou.
+  Dados com nomes únicos (`Booking.Sample()`), porque a instância do Restful Booker é pública e partilhada.
 - **Tracking:** o histórico de trabalho, decisões e bugs encontrados está em `TRACKING.md`.
 - **Nomes dos testes:** `Funcionalidade_Cenario_ResultadoEsperado`.
 - **Paralelismo:** as fixtures correm em paralelo e os testes dentro de cada fixture em sequência. O número de workers está no `.runsettings`.
