@@ -88,8 +88,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ matrix.browser }}
+          # TestResults inteiro: além dos .trx, tem os anexos dos testes, que o job "report" usa.
           path: |
-            TestResults/*.trx
+            TestResults/
             ${{ env.OUTPUT_DIR }}/playwright-traces/
             ${{ env.OUTPUT_DIR }}/visual-diffs/
             ${{ env.OUTPUT_DIR }}/accessibility/
@@ -176,6 +177,39 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: test-results-api
-          path: TestResults/*.trx
+          path: TestResults/
           if-no-files-found: ignore
           retention-days: 14
+
+  # Junta os resultados de todos os jobs num relatório HTML único.
+  report:
+    name: Relatório HTML
+    needs: [test, api]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Sem nome, descarrega todos os artefactos do run, cada um para a sua pasta.
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Gerar relatório
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 .github/scripts/build_test_report.py --input artifacts --output report
+
+      - name: Publicar relatório
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: report/
+          retention-days: 30
+
+      - name: Link no resumo
+        run: |
+          echo "## Relatório HTML" >> "$GITHUB_STEP_SUMMARY"
+          echo "Descarrega o artefacto **test-report** e abre o \`index.html\`." >> "$GITHUB_STEP_SUMMARY"
