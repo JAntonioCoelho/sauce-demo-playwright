@@ -10,16 +10,39 @@ Entradas mais recentes primeiro.
 | Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 · Deque.AxeCore.Playwright 4.14.0 |
 | Browsers | Chromium 156, Firefox 157, WebKit 27.2 (CI); Chromium (local) |
 | Repositório | [JAntonioCoelho/sauce-demo-playwright](https://github.com/JAntonioCoelho/sauce-demo-playwright) (público) |
-| CI | GitHub Actions, `tests.yml`: 3 jobs de browser + 1 job de API em paralelo, verde (~2,5 min por run) |
+| CI | GitHub Actions, `tests.yml`: 3 jobs de browser + 1 de API em paralelo, e o job `report` no fim (~3 min por run) |
+| Relatório | Artefacto `test-report`: `index.html` único com todos os jobs |
 | Gate UI (`Category!=KnownBug&Category!=Api`) | 37/37 a passar em cada browser |
 | Gate API (`Category=Api&Category!=KnownBug`) | 11/11 a passar |
 | Bugs conhecidos (`KnownBug`) | 10 na UI (nos 3 browsers) + 7 na API, todos a falhar como esperado |
 | Utilizadores cobertos | todos os 6 do Sauce Demo |
 | Baselines visuais | `chromium-win`, `chromium-linux`, `firefox-linux`, `webkit-linux` (2 cada) |
 | Acessibilidade | 7 páginas do fluxo de compra, WCAG 2.x A/AA: 0 violações nos 3 browsers |
-| Próximo passo | Relatório HTML único (resultados, screenshots, diffs, traces e acessibilidade) |
+| Próximo passo | Publicar o relatório no GitHub Pages, para abrir no browser sem descarregar o artefacto |
 
 ---
+
+## 2026-11-15 — Relatório HTML único ([PR #3](https://github.com/JAntonioCoelho/sauce-demo-playwright/pull/3))
+
+**Feito**
+- `.github/scripts/build_test_report.py`: lê os `.trx` e os anexos de todos os jobs e gera `index.html` com
+  resumo por job, falhas do gate (mensagem, stack, anexos), matriz teste × browser, bugs conhecidos (com aviso quando
+  um passa), diffs visuais embutidos e violações de acessibilidade por página. Traces e anexos grandes em `files/`.
+- Job `report` no fim da pipeline (`needs: [test, api]`, corre mesmo que algum falhe): descarrega todos os artefactos,
+  gera o relatório e publica `test-report`.
+- Os jobs passam a publicar `TestResults/` inteiro: é lá que o VSTest copia os anexos (`<deployment>/In/<execução>/...`).
+  O gerador procura cada anexo de forma tolerante e escreve no log quantos encontrou e quais faltam.
+- Testado antes do CI com dados sintéticos no formato do VSTest (3 jobs, falha com anexos, KnownBug a passar,
+  anexo em falta de propósito) e revisto em screenshot, em claro e escuro.
+
+**Resultado com dados reais (run do PR):** 4 jobs lidos; 37 testes de gate por browser e 11 de API, todos a passar;
+10 + 7 bugs conhecidos a falhar; **60 anexos encontrados, 0 em falta**; `index.html` com 886 KB.
+
+**Decisões**
+- Gerador em Python só com a biblioteca padrão: corre em qualquer runner sem instalar nada, e foi a única forma de o
+  testar antes do CI (o ambiente onde foi desenvolvido não tinha .NET nem PowerShell).
+- HTML autocontido (CSS e imagens inline), para poder ser partilhado sozinho; os diffs só são embutidos uma vez.
+- Sem Allure: pediria Java e um adaptador para NUnit 5, para um ganho pequeno sobre este relatório.
 
 ## 2026-11-15 — Testes de API e atalho de estado ([PR #2](https://github.com/JAntonioCoelho/sauce-demo-playwright/pull/2))
 

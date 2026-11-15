@@ -56,7 +56,12 @@ browser em paralelo (Chromium, Firefox e WebKit). Em cada job:
 1. Build em Release e instalação do browser.
 2. **Gate** (`Category!=KnownBug`): decide se o run fica verde.
 3. **Bugs conhecidos** (`Category=KnownBug`): devem falhar e não bloqueiam. Se algum passar, o resumo do run avisa.
-4. Resumo no próprio run e artefacto `test-results-<browser>` com os `.trx`, os traces e os diffs visuais.
+4. Resumo no próprio run e artefacto `test-results-<browser>` com os `.trx`, os anexos, os traces e os diffs visuais.
+
+No fim, o job `report` junta os resultados de todos os jobs no artefacto **`test-report`**: descarrega-o e abre o
+`index.html`. Tem o resumo por job, as falhas com anexos, a matriz teste × browser, os bugs conhecidos, os diffs visuais
+e a acessibilidade por página. O gerador é `.github/scripts/build_test_report.py` (Python, só biblioteca padrão);
+localmente: `python3 .github/scripts/build_test_report.py --input <pasta com test-results-*> --output report`.
 
 **Baselines visuais de Linux:** se um run criar baselines novas (ficheiros que ainda não estão no repo), faz commit
 delas para o branch `ci/visual-baselines-<browser>-linux` e publica-as também no artefacto `visual-baselines-<browser>-linux`.
