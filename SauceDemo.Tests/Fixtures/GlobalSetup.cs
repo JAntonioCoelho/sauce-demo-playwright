@@ -3,8 +3,9 @@ using SauceDemo.Tests.Fixtures;
 using SauceDemo.Tests.Pages;
 using SauceDemo.Tests.TestData;
 
-// Namespace raiz de propósito: o SetUpFixture aplica-se a todos os testes neste namespace e nos filhos.
-namespace SauceDemo.Tests;
+// Namespace dos testes de UI de propósito: o SetUpFixture só se aplica a este namespace e aos filhos,
+// por isso os testes de API (SauceDemo.Tests.Api) não abrem um browser nem fazem login no Sauce Demo.
+namespace SauceDemo.Tests.Tests;
 
 [SetUpFixture]
 public sealed class GlobalSetup

@@ -34,9 +34,9 @@ public sealed class CheckoutTests : AuthenticatedTest
     [Test]
     public async Task Checkout_WithoutPostalCode_ShowsValidationError()
     {
-        var inventory = await new InventoryPage(Page).GotoAsync();
-        await inventory.AddToCartAsync(Products.Backpack);
-        var cart = await inventory.Header.OpenCartAsync();
+        // A pré-condição é só "carrinho com um produto": prepara-se pelo estado, não pela UI.
+        await CartState.SeedAsync(Page, Products.Backpack);
+        var cart = await new CartPage(Page).GotoAsync();
         var information = await cart.ProceedToCheckoutAsync();
 
         await information.FillAsync(CustomerInfo.Valid().WithoutPostalCode());
