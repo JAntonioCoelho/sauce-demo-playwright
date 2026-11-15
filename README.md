@@ -69,7 +69,7 @@ O `azure-pipelines.yml` faz o mesmo em Azure DevOps.
 | `Fixtures/` | Classes base, tracing, setup global com login reutilizado |
 | `Pages/` | Page Objects e componentes. Só ações e locators, nunca asserções |
 | `TestData/` | Utilizadores, produtos e dados de cliente |
-| `Tests/` | Testes organizados por funcionalidade |
+| `Tests/` | Testes organizados por funcionalidade (incluindo `AccessibilityTests` e `VisualUserTests`) |
 
 ## Convenções
 
@@ -86,6 +86,9 @@ O `azure-pipelines.yml` faz o mesmo em Azure DevOps.
 - **Regressão visual:** `VisualBaseline.AssertMatchesAsync(Page, "nome", isReference)` compara com
   `VisualBaselines/{browser}-{so}/nome.png` (versionadas). Na primeira corrida a baseline é criada e o teste fica
   `Inconclusive` até ser revista. Para regenerar: `UPDATE_VISUAL_BASELINES=1`. Em falha, o `-diff.png` mostra as diferenças a vermelho.
+- **Acessibilidade:** `AccessibilityScanner.ScanAsync(Page, "nome")` corre o axe-core com as regras WCAG 2.x A/AA e
+  devolve as violações (o relatório JSON fica anexado ao teste). As páginas do fluxo de compra têm de ter zero violações;
+  o controlo positivo garante que o scanner deteta violações quando elas existem.
 - **Tracking:** o histórico de trabalho, decisões e bugs encontrados está em `TRACKING.md`.
 - **Nomes dos testes:** `Funcionalidade_Cenario_ResultadoEsperado`.
 - **Paralelismo:** as fixtures correm em paralelo e os testes dentro de cada fixture em sequência. O número de workers está no `.runsettings`.

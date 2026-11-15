@@ -7,17 +7,47 @@ Entradas mais recentes primeiro.
 
 | | |
 |---|---|
-| Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 |
+| Stack | .NET 10 · NUnit 5.0 · Microsoft.Playwright.NUnit 1.64.1 · Deque.AxeCore.Playwright 4.14.0 |
 | Browsers | Chromium 156, Firefox 157, WebKit 27.2 (CI); Chromium (local) |
 | Repositório | [JAntonioCoelho/sauce-demo-playwright](https://github.com/JAntonioCoelho/sauce-demo-playwright) (público) |
 | CI | GitHub Actions, `tests.yml`: matriz de 3 browsers em paralelo, verde (~2 min por run) |
-| Gate (`Category!=KnownBug`) | 28/28 a passar em cada browser (e em Windows, local) |
+| Gate (`Category!=KnownBug`) | 36/36 a passar em cada browser |
 | Bugs conhecidos (`KnownBug`) | 10, todos a falhar como esperado nos 3 browsers |
 | Utilizadores cobertos | todos os 6 do Sauce Demo |
 | Baselines visuais | `chromium-win`, `chromium-linux`, `firefox-linux`, `webkit-linux` (2 cada) |
-| Próximo passo | Acessibilidade com axe-core (`Deque.AxeCore.Playwright`) |
+| Acessibilidade | 7 páginas do fluxo de compra, WCAG 2.x A/AA: 0 violações nos 3 browsers |
+| Próximo passo | Testes de API (Restful Booker) e uso da API para preparar dados nos testes de UI |
 
 ---
+
+## 2026-11-15 — Acessibilidade com axe-core ([PR #1](https://github.com/JAntonioCoelho/sauce-demo-playwright/pull/1))
+
+**Feito**
+- `AccessibilityScanner` (Fixtures): corre o axe-core (`Deque.AxeCore.Playwright` 4.14.0) só com as regras WCAG 2.0, 2.1
+  e 2.2, níveis A e AA (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`). Cada violação vai para o output do
+  teste (linha `A11Y`) e o relatório completo fica anexado em JSON e no artefacto `test-results-<browser>/accessibility/`.
+- `AccessibilityTests`: as 7 páginas do fluxo real (login, inventário, detalhe, carrinho, checkout informação,
+  overview e concluído) têm de ter zero violações.
+- Controlo positivo `Scanner_OnPageWithKnownViolations_ReportsThem`: uma página com violações plantadas
+  (`html-has-lang`, `image-alt`, `button-name`, `label`) que o scanner tem de reportar. Detetou as 4 nos três
+  browsers; no Firefox reportou também `target-size` no botão vazio.
+- Trabalho feito num branch com PR: a pipeline correu primeiro no PR e só depois foi feito o merge.
+
+**Resultado:** 0 violações WCAG A/AA em todas as páginas, em Chromium, Firefox e WebKit. Gate 36/36 por browser.
+
+**Teste visual instável corrigido (WebKit)**
+- O `Inventory_LooksLikeBaseline("standard_user")` falhou uma vez no WebKit com 35 696 pixels diferentes, praticamente
+  a área de uma imagem de produto (150 × 238 px): o screenshot saiu antes de a imagem estar pintada.
+- A espera só verificava `image.complete` (download acabado). Passou a esperar também por `image.decode()` e por dois
+  frames de animação. Validado com dois runs seguidos (run + re-run), verdes nos três browsers.
+
+**Decisões**
+- Sem violações hoje, não há lista de violações conhecidas nem teste `KnownBug`: o gate exige zero, e qualquer violação
+  nova é uma regressão. Se o Sauce Demo passar a ter violações que não controlamos, a lista volta a fazer sentido.
+- Só regras WCAG no gate. As regras "best-practice" do axe (landmarks, regiões, etc.) ficam de fora: não são
+  requisitos WCAG e tornariam o gate ruidoso.
+- O axe não substitui testes manuais (leitor de ecrã, navegação por teclado): só apanha os problemas que se detetam
+  automaticamente, que são uma parte do total. Zero violações aqui não quer dizer que a aplicação seja acessível.
 
 ## 2026-11-13 — Chromium, Firefox e WebKit na pipeline
 
