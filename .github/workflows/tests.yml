@@ -83,7 +83,7 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/Write-TestSummary.ps1 -ResultsDirectory TestResults -Browser $env:BROWSER
 
-      - name: Publicar resultados, traces e diffs
+      - name: Publicar resultados, traces, diffs e relatórios de acessibilidade
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
@@ -92,6 +92,7 @@ jobs:
             TestResults/*.trx
             ${{ env.OUTPUT_DIR }}/playwright-traces/
             ${{ env.OUTPUT_DIR }}/visual-diffs/
+            ${{ env.OUTPUT_DIR }}/accessibility/
           if-no-files-found: ignore
           retention-days: 14
 
