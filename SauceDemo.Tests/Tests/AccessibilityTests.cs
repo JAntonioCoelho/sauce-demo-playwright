@@ -6,7 +6,8 @@ namespace SauceDemo.Tests.Tests;
 
 /// <summary>
 /// Acessibilidade (WCAG 2.x A/AA) com axe-core em todas as páginas do fluxo de compra.
-/// O gate falha com violações novas; as que já existem estão em <see cref="KnownAccessibilityViolations"/>.
+/// Hoje o Sauce Demo não tem violações WCAG nestas páginas, por isso o gate exige zero:
+/// qualquer violação que apareça é uma regressão.
 /// </summary>
 [TestFixture]
 [Category("Accessibility")]
@@ -27,20 +28,41 @@ public sealed class AccessibilityTests : BaseTest
         PagesUnderTest.Select(pageName => new TestCaseData(pageName));
 
     [TestCaseSource(nameof(AllPages))]
-    public async Task Page_HasNoNewAccessibilityViolations(string pageName)
+    public async Task Page_HasNoAccessibilityViolations(string pageName)
     {
         await NavigateToAsync(pageName);
 
         var violations = await AccessibilityScanner.ScanAsync(Page, pageName);
 
-        var known = KnownAccessibilityViolations.For(pageName);
-        var unexpected = violations.Where(violation => !known.Contains(violation.RuleId)).ToList();
-        foreach (var rule in known.Except(violations.Select(violation => violation.RuleId)))
-        {
-            TestContext.Out.WriteLine($"A11Y {pageName}: a violação conhecida '{rule}' já não aparece. Tira-a da lista.");
-        }
+        Assert.That(violations, Is.Empty, () => AccessibilityScanner.Describe(pageName, violations));
+    }
 
-        Assert.That(unexpected, Is.Empty, () => AccessibilityScanner.Describe(pageName, unexpected));
+    /// <summary>
+    /// Controlo positivo: um teste que nunca falha pode simplesmente não estar a verificar nada.
+    /// Esta página tem violações WCAG conhecidas, e o scanner tem de as encontrar todas.
+    /// </summary>
+    [Test]
+    public async Task Scanner_OnPageWithKnownViolations_ReportsThem()
+    {
+        await Page.SetContentAsync("""
+            <!doctype html>
+            <html>
+              <head><title>Controlo positivo</title></head>
+              <body>
+                <main>
+                  <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+                  <button></button>
+                  <input type="text">
+                </main>
+              </body>
+            </html>
+            """);
+
+        var violations = await AccessibilityScanner.ScanAsync(Page, "controlo-positivo");
+
+        Assert.That(
+            violations.Select(violation => violation.RuleId),
+            Is.SupersetOf(new[] { "html-has-lang", "image-alt", "button-name", "label" }));
     }
 
     /// <summary>Leva o browser até à página pedida pelo fluxo real (login, carrinho, checkout).</summary>
