@@ -17,6 +17,8 @@ public sealed class TestSettings
 
     public string DefaultPassword { get; set; } = string.Empty;
 
+    public ApiSettings Api { get; set; } = new();
+
     private static TestSettings Load()
     {
         var environment = Environment.GetEnvironmentVariable("TEST_ENVIRONMENT") ?? "Local";
@@ -38,4 +40,14 @@ public sealed class TestSettings
 
         return settings;
     }
+}
+
+/// <summary>Restful Booker: API pública de treino. As credenciais são as da documentação oficial.</summary>
+public sealed class ApiSettings
+{
+    public string BaseUrl { get; set; } = string.Empty;
+
+    public string Username { get; set; } = string.Empty;
+
+    public string Password { get; set; } = string.Empty;
 }

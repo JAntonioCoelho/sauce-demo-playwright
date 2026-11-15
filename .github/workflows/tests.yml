@@ -60,7 +60,7 @@ jobs:
       - name: Testes (gate)
         run: >
           dotnet test "$PROJECT" -c Release --no-build
-          --filter "Category!=KnownBug"
+          --filter "Category!=KnownBug&Category!=Api"
           --logger "trx;LogFileName=gate.trx"
           --logger "console;verbosity=normal"
           --results-directory TestResults
@@ -72,7 +72,7 @@ jobs:
         continue-on-error: true
         run: >
           dotnet test "$PROJECT" -c Release --no-build
-          --filter "Category=KnownBug"
+          --filter "Category=KnownBug&Category!=Api"
           --logger "trx;LogFileName=known-bugs.trx"
           --results-directory TestResults
           -- Playwright.BrowserName="$BROWSER"
@@ -129,3 +129,53 @@ jobs:
           git commit -m "chore: baselines visuais $BROWSER-linux (run ${{ github.run_id }})"
           git push --force origin "$branch"
           echo "::notice title=Baselines visuais ($BROWSER)::Baselines novas no branch $branch. Revê as imagens e faz merge para main."
+
+  # Testes de API: não precisam de browser, por isso correm uma vez, num job à parte da matriz.
+  api:
+    name: Testes de API (Restful Booker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        id: build
+        run: dotnet build "$PROJECT" -c Release
+
+      - name: Testes de API (gate)
+        run: >
+          dotnet test "$PROJECT" -c Release --no-build
+          --filter "Category=Api&Category!=KnownBug"
+          --logger "trx;LogFileName=gate.trx"
+          --logger "console;verbosity=normal"
+          --results-directory TestResults
+
+      - name: Bugs conhecidos da API (devem falhar)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: >
+          dotnet test "$PROJECT" -c Release --no-build
+          --filter "Category=Api&Category=KnownBug"
+          --logger "trx;LogFileName=known-bugs.trx"
+          --logger "console;verbosity=normal"
+          --results-directory TestResults
+
+      - name: Resumo
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        shell: pwsh
+        run: ./.github/scripts/Write-TestSummary.ps1 -ResultsDirectory TestResults -Browser api
+
+      - name: Publicar resultados
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-api
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+          retention-days: 14
